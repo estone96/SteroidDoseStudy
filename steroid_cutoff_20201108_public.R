@@ -9,7 +9,7 @@ server_address = ''
 server_database = ''
 server_scheme = ''
 server_uid = ''
-server_pwd = '''
+server_pwd = ''
 
 dbconnection = odbcDriverConnect(paste('Driver=',server_driver,
                                        ";Server=",server_address,
