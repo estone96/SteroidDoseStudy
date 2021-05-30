@@ -10,12 +10,12 @@ require("DatabaseConnector")
 oracleTempSchema = NULL
 
 # cdmDatabaseSchema <- "" ## server_database.server_scheme
-cdmDatabaseSchema <- "" ## server_database.server_scheme
+cdmDatabaseSchema <- "[put your CDM schema]" ## server_database.server_scheme 
 
 connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql server", #"postgresql"
-                                                                server = "localhost",
-                                                                user = "sa",
-                                                                password = "hyos848586",
+                                                                server = "[your server address]",
+                                                                user = "[user ID]",
+                                                                password = "[your password]",
                                                                 port = NULL)
 connection <- DatabaseConnector::connect(connectionDetails)
 
