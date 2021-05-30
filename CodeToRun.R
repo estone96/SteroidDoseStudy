@@ -27,8 +27,7 @@ sql <- "SELECT *
 FROM @cdm_database_schema.drug_exposure
 where person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
-where person_id IN (SELECT person_id FROM @cdm_database_schema.person where year_of_birth >= 1956 AND year_of_birth <= 1995)
-AND condition_concept_id IN (@autoimmune_list))
+where person_id IN condition_concept_id IN (@autoimmune_list))
 AND drug_concept_id IN (@drug_list)"
 sql <- SqlRender::render(sql, 
                          cdm_database_schema = cdmDatabaseSchema,
@@ -60,8 +59,7 @@ SELECT person_id
 FROM @cdm_database_schema.drug_exposure
 WHERE person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
-where person_id IN (SELECT person_id FROM @cdm_database_schema.person where year_of_birth >= 1956 AND year_of_birth <= 1995)
-AND condition_concept_id IN (@autoimmune_list))
+where person_id IN condition_concept_id IN (@autoimmune_list))
 AND drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table))
 AND condition_concept_id IN (@type_list)"
 
