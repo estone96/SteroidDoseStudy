@@ -3,8 +3,9 @@ require('doSNOW')
 require('ROCR')
 require('dplyr')
 require("remotes")
+require("DatabaseConnector")
 
-remotes::install_github("OHDSI/DatabaseConnector")
+# remotes::install_github("OHDSI/DatabaseConnector")
 
 oracleTempSchema = NULL
 
@@ -12,9 +13,9 @@ oracleTempSchema = NULL
 cdmDatabaseSchema <- "" ## server_database.server_scheme
 
 connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql server", #"postgresql"
-                                                                server = "",
-                                                                user = "",
-                                                                password = "",
+                                                                server = "localhost",
+                                                                user = "sa",
+                                                                password = "hyos848586",
                                                                 port = NULL)
 connection <- DatabaseConnector::connect(connectionDetails)
 
@@ -106,7 +107,7 @@ data_translation$drug_value = coalesce(data_translation$amount_value, data_trans
 
 data_translation = data_translation[,c('drug_concept_id','ingredient_concept_id','drug_value')]
 
-data_translation[data_translation$ingredient_concept_id == 1518254,'drug_value'] = data_translation[data_translation$ingredient_concept_id == 1518254,'drug_value'] * 6.25
+data_translation[data_translation$ingredient_concept_id == 1518254,'drug_value'] = as.numeric(data_translation[data_translation$ingredient_concept_id == 1518254,'drug_value']) * 6.25
 
 
 data_translated = data_translation
@@ -115,7 +116,7 @@ data_input = data_input[,c("person_id","drug_concept_id", "drug_exposure_start_d
 data_input$drug_exposure_start_date = as.Date(data_input$drug_exposure_start_date)
 data_input$drug_exposure_end_date = as.Date(data_input$drug_exposure_end_date)
 data_input = merge(data_input, data_translated, by = 'drug_concept_id')
-data_input$drug_value = data_input$quantity * data_input$drug_value 
+data_input$drug_value = data_input$quantity * as.numeric(data_input$drug_value)
 
 data_failed$condition_start_date = as.Date(data_failed$condition_start_date)
 
