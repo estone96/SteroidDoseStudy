@@ -10,13 +10,14 @@ require("DatabaseConnector")
 oracleTempSchema = NULL
 
 # cdmDatabaseSchema <- "" ## server_database.server_scheme
-cdmDatabaseSchema <- "" ## server_database.server_scheme
-
+cdmDatabaseSchema <- "NHIS_CDM_Sample.dbo" ## server_database.server_scheme
+#pathToDriver = "/Library/Frameworks/R.framework/Versions/4.0/Resources/library/DatabaseConnector/java"
 connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql server", #"postgresql"
-                                                                server = "localhost",
+                                                                server = "192.168.0.2",
                                                                 user = "sa",
                                                                 password = "hyos848586",
-                                                                port = NULL)
+                                                                port = NULL
+                                                                )
 connection <- DatabaseConnector::connect(connectionDetails)
 
 df = read.csv('autoimmune.csv')
@@ -27,8 +28,7 @@ sql <- "SELECT *
 FROM @cdm_database_schema.drug_exposure
 where person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
-where person_id IN (SELECT person_id FROM @cdm_database_schema.person where year_of_birth >= 1956 AND year_of_birth <= 1995)
-AND condition_concept_id IN (@autoimmune_list))
+where condition_concept_id IN (@autoimmune_list))
 AND drug_concept_id IN (@drug_list)"
 sql <- SqlRender::render(sql, 
                          cdm_database_schema = cdmDatabaseSchema,
@@ -51,7 +51,7 @@ DatabaseConnector::insertTable(connection = connection,
                                createTable = TRUE,
                                tempTable = TRUE,
                                progressBar = TRUE,
-                               useMppBulkLoad = FALSE)
+                               bulkLoad = FALSE)
 
 sql = "SELECT condition_concept_id, person_id, condition_start_date
 FROM @cdm_database_schema.condition_occurrence
@@ -60,8 +60,7 @@ SELECT person_id
 FROM @cdm_database_schema.drug_exposure
 WHERE person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
-where person_id IN (SELECT person_id FROM @cdm_database_schema.person where year_of_birth >= 1956 AND year_of_birth <= 1995)
-AND condition_concept_id IN (@autoimmune_list))
+where condition_concept_id IN (@autoimmune_list))
 AND drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table))
 AND condition_concept_id IN (@type_list)"
 
