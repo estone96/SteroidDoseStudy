@@ -10,6 +10,7 @@ require("DatabaseConnector")
 oracleTempSchema = NULL
 
 # cdmDatabaseSchema <- "" ## server_database.server_scheme
+<<<<<<< HEAD
 cdmDatabaseSchema <- "NHIS_CDM_Sample.dbo" ## server_database.server_scheme
 #pathToDriver = "/Library/Frameworks/R.framework/Versions/4.0/Resources/library/DatabaseConnector/java"
 connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql server", #"postgresql"
@@ -18,6 +19,15 @@ connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql serv
                                                                 password = "hyos848586",
                                                                 port = NULL
                                                                 )
+=======
+cdmDatabaseSchema <- "[put your CDM schema]" ## server_database.server_scheme 
+
+connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql server", #"postgresql"
+                                                                server = "[your server address]",
+                                                                user = "[user ID]",
+                                                                password = "[your password]",
+                                                                port = NULL)
+>>>>>>> bccc147d840dd7e5da38e8c578a2608c503ba7cf
 connection <- DatabaseConnector::connect(connectionDetails)
 
 df = read.csv('autoimmune.csv')
@@ -28,7 +38,11 @@ sql <- "SELECT *
 FROM @cdm_database_schema.drug_exposure
 where person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
+<<<<<<< HEAD
 where condition_concept_id IN (@autoimmune_list))
+=======
+where person_id IN condition_concept_id IN (@autoimmune_list))
+>>>>>>> bccc147d840dd7e5da38e8c578a2608c503ba7cf
 AND drug_concept_id IN (@drug_list)"
 sql <- SqlRender::render(sql, 
                          cdm_database_schema = cdmDatabaseSchema,
@@ -60,7 +74,11 @@ SELECT person_id
 FROM @cdm_database_schema.drug_exposure
 WHERE person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
+<<<<<<< HEAD
 where condition_concept_id IN (@autoimmune_list))
+=======
+where person_id IN condition_concept_id IN (@autoimmune_list))
+>>>>>>> bccc147d840dd7e5da38e8c578a2608c503ba7cf
 AND drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table))
 AND condition_concept_id IN (@type_list)"
 
