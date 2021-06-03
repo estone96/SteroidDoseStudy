@@ -9,14 +9,16 @@ require("DatabaseConnector")
 
 oracleTempSchema = NULL
 
-# cdmDatabaseSchema <- "" ## server_database.server_scheme
-cdmDatabaseSchema <- "[put your CDM schema]" ## server_database.server_scheme 
+cdmDatabaseSchema <- "" ## server_database.server_scheme 
 
-connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "sql server", #"postgresql"
-                                                                server = "[your server address]",
-                                                                user = "[user ID]",
-                                                                password = "[your password]",
+connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "", #"postgresql"
+                                                                server = "",
+                                                                user = "",
+                                                                password = "",
                                                                 port = NULL)
+# Sys.setenv("DATABASECONNECTOR_JAR_FOLDER" = "C:/JDBC") 
+# downloadJdbcDrivers("postgresql")
+
 connection <- DatabaseConnector::connect(connectionDetails)
 
 df = read.csv('autoimmune.csv')
@@ -27,7 +29,7 @@ sql <- "SELECT *
 FROM @cdm_database_schema.drug_exposure
 where person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
-where person_id IN condition_concept_id IN (@autoimmune_list))
+where condition_concept_id IN (@autoimmune_list))
 AND drug_concept_id IN (@drug_list)"
 sql <- SqlRender::render(sql, 
                          cdm_database_schema = cdmDatabaseSchema,
@@ -59,7 +61,7 @@ SELECT person_id
 FROM @cdm_database_schema.drug_exposure
 WHERE person_id IN ( SELECT person_id
 FROM @cdm_database_schema.condition_occurrence
-where person_id IN condition_concept_id IN (@autoimmune_list))
+where condition_concept_id IN (@autoimmune_list))
 AND drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table))
 AND condition_concept_id IN (@type_list)"
 
