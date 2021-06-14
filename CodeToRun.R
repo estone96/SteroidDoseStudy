@@ -209,7 +209,8 @@ result$end_date = as.Date(result$end_date)
 result$day_average = result$drug_sum / result$duration_sum
 result$drug_sum_original = result$drug_sum
 result$drug_sum = log(result$drug_sum)
-
+result$duration_sum_original = result$duration_sum
+result$duration_sum = log(result$duration_sum_original)
 
 steroid_analysis = function(target, min_dose = 0, end_dose = Inf, pulse = F, output_name = 'output'){
 output = c(NA, NA, NA)
@@ -372,3 +373,166 @@ steroid_analysis(result, min_dose = 7.5, end_dose = 30, output_name = 'output_me
 steroid_analysis(result, min_dose = 30, end_dose = 100, output_name = 'output_high_dose')
 steroid_analysis(result, min_dose = 100, end_dose = Inf, output_name = 'output_very_high_dose')
 steroid_analysis(result, pulse = T, output_name = 'output_pulse')
+
+                         
+steroid_analysis_duration = function(target, min_dose = 0, end_dose = Inf, pulse = F, output_name = 'output'){
+  output = c(NA, NA, NA)
+  output_p = c(NA, NA, NA)
+  output_n = c(NA, NA, NA)
+  output_all = c(NA, NA, NA)
+  
+  if (pulse == F){
+    target = target[target$day_average > min_dose & target$day_average <= end_dose,]
+  } else {
+    target = target[target$is_pulse == T,]
+  }
+  
+  jpeg(paste(output_name,'.jpg',sep=''),width = 1280, height = 720)
+  par(mfrow = c(3,5))
+  output_n[1] = sum(target$bonefracture)
+  if (output_n[1] != 0){
+    hist(unlist(target[target$bonefracture == 1,"duration_sum_original"]),main = 'Bonefracture', xlab = 'Prednisone (mg)')
+    hist(unlist(target[target$bonefracture == 1,"duration_sum"]),main = 'Bonefracture (log)', xlab = 'Prednisone log(mg)')
+    target$bonefracture = factor(target$bonefracture)
+    
+    model = glm(bonefracture ~ duration_sum, family = binomial(link = 'logit'), data = target)
+    #summary(model)
+    #exp(model$coefficients)
+    p <- predict(model, newdata=target, type="response")
+    pr <- prediction(p, target$bonefracture)
+    prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+    plot(prf, main = "ROC Curve")
+    
+    predictions = prediction(predict(model, newdata=target, type="response"), target$bonefracture)
+    plot(unlist(performance(predictions, "sens")@x.values), unlist(performance(predictions, "sens")@y.values),
+         type="l", lwd=1, ylab="Sensitivity", xlab="Cutoff")
+    par(new=TRUE)
+    plot(unlist(performance(predictions, "spec")@x.values), unlist(performance(predictions, "spec")@y.values),
+         type="l", lwd=1, col='red', ylab="", xlab="", main = "Cutoff Analysis")
+    #axis(4, at=seq(0,1,0.2),labels=z)
+    mtext("Specificity",side=4, padj=-2, col='red')
+    
+    sens = cbind(unlist(performance(predictions, "sens")@x.values), unlist(performance(predictions, "sens")@y.values))
+    spec = cbind(unlist(performance(predictions, "spec")@x.values), unlist(performance(predictions, "spec")@y.values))
+    
+    morp = sens[which.min(apply(sens, 1, function(x) min(colSums(abs(t(spec) - x))))), 1]
+    
+    #1/(1+exp(-(model$coefficients[2]*300+model$coefficients[1])))
+    p = sens[which.min(apply(sens, 1, function(x) min(colSums(abs(t(spec) - x))))), 1]
+    out = (log(p/(1-p)) - coef(model)[1])/coef(model)[2]
+    
+    X1_range = seq(from=min(target$duration_sum), to=max(target$duration_sum)*1.05, by=0.1)
+    logits = coef(model)[1]+coef(model)[2]*X1_range
+    probs = exp(logits)/(1 + exp(logits))
+    plot(exp(X1_range), probs, type = 'l',ylim = c(0,1), main = 'Probablity Plot', xlab = 'Prednisone (mg)', ylab = 'Probablity')
+    abline(h = p, col = 'red', lty = 'dashed')
+    
+    output_p[1] = p
+    output[1] = exp(out)
+    output_all[1] = nrow(target)
+  }
+  
+  output_n[2] = sum(target$osteonecrosis)
+  if (output_n[2] != 0){
+    hist(unlist(target[target$osteonecrosis == 1,"duration_sum_original"]),main = 'Osteonecrosis', xlab = 'Prednisone (mg)')
+    hist(unlist(target[target$osteonecrosis == 1,"duration_sum"]),main = 'Osteonecrosis (log)', xlab = 'Prednisone log(mg)')
+    target$osteonecrosis = factor(target$osteonecrosis)
+    
+    model = glm(osteonecrosis ~ duration_sum, family = binomial(link = 'logit'), data = target)
+    #summary(model)
+    #exp(model$coefficients)
+    p <- predict(model, newdata=target, type="response")
+    pr <- prediction(p, target$osteonecrosis)
+    prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+    plot(prf, main = "ROC Curve")
+    
+    predictions = prediction(predict(model, newdata=target, type="response"), target$osteonecrosis)
+    plot(unlist(performance(predictions, "sens")@x.values), unlist(performance(predictions, "sens")@y.values),
+         type="l", lwd=2, ylab="Sensitivity", xlab="Cutoff")
+    par(new=TRUE)
+    plot(unlist(performance(predictions, "spec")@x.values), unlist(performance(predictions, "spec")@y.values),
+         type="l", lwd=2, col='red', ylab="", xlab="", main = 'Cutoff Analysis')
+    #axis(4, at=seq(0,1,0.2),labels=z)
+    mtext("Specificity",side=4, padj=-2, col='red')
+    
+    sens = cbind(unlist(performance(predictions, "sens")@x.values), unlist(performance(predictions, "sens")@y.values))
+    spec = cbind(unlist(performance(predictions, "spec")@x.values), unlist(performance(predictions, "spec")@y.values))
+    
+    p = sens[which.min(apply(sens, 1, function(x) min(colSums(abs(t(spec) - x))))), 1]
+    
+    #1/(1+exp(-(model$coefficients[2]*300+model$coefficients[1])))
+    
+    out = (log(p/(1-p)) - coef(model)[1])/coef(model)[2]
+    
+    X1_range = seq(from=min(target$duration_sum), to=max(target$duration_sum)*1.05, by=0.1)
+    logits = coef(model)[1]+coef(model)[2]*X1_range
+    probs = exp(logits)/(1 + exp(logits))
+    plot(exp(X1_range), probs, type = 'l',ylim = c(0,1), main = 'Probablity Plot', xlab = 'Prednisone (mg)', ylab = 'Probablity')
+    abline(h = p, col = 'red', lty = 'dashed')
+    
+    output_p[2] = p
+    output[2] = exp(out)
+    output_all[2] = nrow(target)
+  }
+  
+  output_n[3] = sum(target$osteoporosis)
+  if (output_n[3] != 0){
+    hist(unlist(target[target$osteoporosis == 1,"duration_sum_original"]),main = 'Osteoporosis', xlab = 'Prednisone (mg)')
+    hist(unlist(target[target$osteoporosis == 1,"duration_sum"]),main = 'Osteoporosis (log)', xlab = 'Prednisone log(mg)')
+    target$osteoporosis = factor(target$osteoporosis)
+    
+    
+    model = glm(osteoporosis ~ duration_sum, family = binomial(link = 'logit'), data = target)
+    #summary(model)
+    #exp(model$coefficients)
+    p <- predict(model, newdata=target, type="response")
+    pr <- prediction(p, target$osteoporosis)
+    prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+    plot(prf, main = "ROC Curve")
+    
+    predictions = prediction(predict(model, newdata=target, type="response"), target$osteoporosis)
+    plot(unlist(performance(predictions, "sens")@x.values), unlist(performance(predictions, "sens")@y.values),
+         type="l", lwd=2, ylab="Sensitivity", xlab="Cutoff")
+    par(new=TRUE)
+    plot(unlist(performance(predictions, "spec")@x.values), unlist(performance(predictions, "spec")@y.values),
+         type="l", lwd=2, col='red', ylab="", xlab="",main='Cutoff Analysis')
+    ##axis(4, at=seq(0,1,0.2),labels=z)
+    mtext("Specificity",side=4, padj=-2, col='red')
+    
+    sens = cbind(unlist(performance(predictions, "sens")@x.values), unlist(performance(predictions, "sens")@y.values))
+    spec = cbind(unlist(performance(predictions, "spec")@x.values), unlist(performance(predictions, "spec")@y.values))
+    
+    p = sens[which.min(apply(sens, 1, function(x) min(colSums(abs(t(spec) - x))))), 1]
+    
+    #1/(1+exp(-(model$coefficients[2]*300+model$coefficients[1])))
+    
+    out = (log(p/(1-p)) - coef(model)[1])/coef(model)[2]
+    
+    X1_range = seq(from=min(target$duration_sum), to=max(target$duration_sum)*1.05, by=0.1)
+    logits = coef(model)[1]+coef(model)[2]*X1_range
+    probs = exp(logits)/(1 + exp(logits))
+    plot(exp(X1_range), probs, type = 'l',ylim = c(0,1), main = 'Probablity Plot', xlab = 'Prednisone (mg)', ylab = 'Probablity')
+    abline(h = p, col = 'red', lty = 'dashed')
+    
+    output_p[3] = p
+    output[3] = exp(out)
+    output_all[3] = nrow(target)
+  }
+  
+  output_return = rbind(output_p, output, output_n, output_all)
+  colnames(output_return) = c('Bonefracture','Osteonecrosis','Osteoporosis')
+  rownames(output_return) = c('Cutoff Probablity','Cutoff Value','Number of Items','Total Items')
+  dev.off()
+  par(mfrow = c(1,1))
+  write.csv(output_return, paste(output_name,'_duration.csv',sep=""))
+  return(output_return)
+}
+
+
+
+steroid_analysis_duration(result, output_name = 'output_all')
+steroid_analysis_duration(result, min_dose = 0, end_dose = 7.5, output_name = 'output_low_dose')
+steroid_analysis_duration(result, min_dose = 7.5, end_dose = 30, output_name = 'output_medium_dose')
+steroid_analysis_duration(result, min_dose = 30, end_dose = 100, output_name = 'output_high_dose')
+steroid_analysis_duration(result, min_dose = 100, end_dose = Inf, output_name = 'output_very_high_dose')
+steroid_analysis_duration(result, pulse = T, output_name = 'output_pulse')
