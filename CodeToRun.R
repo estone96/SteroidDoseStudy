@@ -41,6 +41,57 @@ sql <- SqlRender::translate(sql,
 res <- DatabaseConnector::querySql(connection = connection,
                                    sql = sql)
 
+
+sql <- "SELECT PERSON_ID, YEAR_OF_BIRTH FROM @cdm_database_schema.person WHERE person_id IN (
+SELECT person_id
+FROM @cdm_database_schema.drug_exposure
+where person_id IN ( SELECT person_id
+FROM @cdm_database_schema.condition_occurrence
+where condition_concept_id IN (@autoimmune_list))
+AND drug_concept_id IN (@drug_list))"
+sql <- SqlRender::render(sql, 
+                         cdm_database_schema = cdmDatabaseSchema,
+                         autoimmune_list = df$Id,
+                         drug_list = df_drugs)
+sql <- SqlRender::translate(sql,
+                            targetDialect = connection@dbms,
+                            oracleTempSchema = oracleTempSchema)
+res_person <- DatabaseConnector::querySql(connection = connection,
+                                          sql = sql)
+
+target_person = unique(res_person$PERSON_ID)
+target_person_id = rep(NA,length(target_person))
+
+iterations = length(target_person)
+
+numCores <- parallel::detectCores() - 1
+myCluster <- makeCluster(numCores)
+registerDoSNOW(myCluster)
+
+pb = txtProgressBar(max = iterations, style = 3)
+progress = function(n) setTxtProgressBar(pb, n)
+opts <- list(progress = progress)
+
+result_person <- foreach(i = 1:iterations, .combine = c, 
+                  .options.snow = opts) %dopar% {
+                    calc_age = function(i){
+                      res_temp = res[res$PERSON_ID == target_person[i],]
+                      res_temp = res_temp[order(res_temp$DRUG_EXPOSURE_START_DATE),]
+                      res_temp = substr(as.character(res_temp$DRUG_EXPOSURE_START_DATE[1]),1,4)
+                      age_target_person = as.numeric(res_temp) - res_person[res_person$PERSON_ID == target_person[i],'YEAR_OF_BIRTH']
+                      age_target_person = age_target_person+1
+                      if (age_target_person <= 64 & age_target_person >= 25){
+                        return(target_person[i])
+                      }
+                    }
+                    calc_age(i)
+                  }
+
+
+close(pb)
+stopCluster(myCluster)
+
+
 ###Res2
 drugsDf <- as.data.frame(df_drugs)
 colnames(drugsDf) <- c("steroid_concept_id")
@@ -95,8 +146,8 @@ res3 <- DatabaseConnector::querySql(connection = connection,
 # odbcClose(dbconnection)
 DatabaseConnector::disconnect(connection)
 
-data_input = res
-data_failed = res2
+data_input = res[res$PERSON_ID %in% result_person, ]
+data_failed = res2[res2$PERSON_ID %in% result_person, ]
 data_translation = res3
 
 colnames(data_input) <- tolower(colnames(data_input))
