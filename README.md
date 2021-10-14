@@ -9,11 +9,13 @@ We try to find the cutoff level of steroid dose causing musculoskeletal complica
 1. Cumulative dose analysis
 2. Cumulative days of use analysis
 3. Average dose analysis
+4. Model comparison
 
 ## Usage
 Add below details of your CDM database in "CodeToRun.R"
 ```
 cdmDatabaseSchema <- "" ## server_database.server_scheme 
+resultsDatabaseSchema <- ""
 
 connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = "", #"postgresql"
                                                                 server = "",
