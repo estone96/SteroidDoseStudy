@@ -12,7 +12,7 @@ require('glmnet')
 # remotes::install_github("OHDSI/DatabaseConnector")
 
 
-analysis_ml = function(connection,connection, cdmDatabaseSchema, oracleTempSchema,resultsDatabaseSchema){
+analysis_ml = function(connection,cdmDatabaseSchema, oracleTempSchema,resultsDatabaseSchema){
 
 sql <- "select * from @vocabulary_database_schema.concept
 where concept_id in (
