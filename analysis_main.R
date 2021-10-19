@@ -200,7 +200,7 @@ AND drug_concept_id IN (@drug_list) AND route_concept_id in (4171047,4132161,430
   
   iterations = length(target_person)
   
-  numCores <- parallel::detectCores() - 4
+  numCores <- parallel::detectCores() - 2
   myCluster <- makeCluster(numCores)
   registerDoSNOW(myCluster)
   
@@ -320,7 +320,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   patient_unique = unique(data_input$person_id)
   iterations = length(patient_unique)
   
-  numCores <- parallel::detectCores() - 4
+  numCores <- parallel::detectCores() - 2
   myCluster <- makeCluster(numCores)
   registerDoSNOW(myCluster)
   
@@ -685,14 +685,14 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   
   
   steroid_analysis(result, output_name = 'output_all')
-  # steroid_analysis(result, min_dose = 0, end_dose = 7.5, output_name = 'output_low_dose')
-  # steroid_analysis(result, min_dose = 7.5, end_dose = 30, output_name = 'output_medium_dose')
-  # steroid_analysis(result, min_dose = 30, end_dose = 100, output_name = 'output_high_dose')
-  # steroid_analysis(result, min_dose = 100, end_dose = Inf, output_name = 'output_very_high_dose')
-  # steroid_analysis(result, pulse = T, output_name = 'output_pulse')
+  steroid_analysis(result, min_dose = 0, end_dose = 7.5, output_name = 'output_low_dose')
+  steroid_analysis(result, min_dose = 7.5, end_dose = 30, output_name = 'output_medium_dose')
+  steroid_analysis(result, min_dose = 30, end_dose = 100, output_name = 'output_high_dose')
+  steroid_analysis(result, min_dose = 100, end_dose = Inf, output_name = 'output_very_high_dose')
+  steroid_analysis(result, pulse = T, output_name = 'output_pulse')
   #
-  # steroid_analysis(result[result$drug_sum_original > 2000,], output_name = 'output_sub_2000')
-  # steroid_analysis(result[result$drug_sum_original <= 2000,], output_name = 'output_over_2000')
+  steroid_analysis(result[result$drug_sum_original > 2000,], output_name = 'output_sub_2000')
+  steroid_analysis(result[result$drug_sum_original <= 2000,], output_name = 'output_over_2000')
   
   print("Constructing features for propensity score analysis...")
   
@@ -727,7 +727,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   
   
   DatabaseConnector::insertTable(connection = connection,
-                                 tableName = "vcdm_results_hyumc.steroiddosestudy",
+                                 tableName = paste(resultsDatabaseSchema,'.','steroiddosestudy',sep=''),
                                  data = create_cohort(result, 'ALL','ALL'),
                                  dropTableIfExists = TRUE,
                                  tempTable = FALSE,
@@ -803,138 +803,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   result_oc = result[result[[y_value]] ==0,]
   ps_oc = ps[result[[y_value]] ==0]
   x_oc = result_oc$drug_sum
-  
-  # pb = txtProgressBar(max = 100, style = 3)
-  # progress = function(n) setTxtProgressBar(pb, n)
-  # opts <- list(progress = progress)
-  # 
-  # nu_param = seq(0.0001, 0.9999, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  # 
-  # c_param = 2^seq(-10,10, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  # 
-  # 
-  # 
-  # result_oc <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                      .options.snow = opts) %dopar% {
-  #                        
-  #                        nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                        gamma_param = 2^seq(-10,0, length.out = 10)
-  #                        param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                        
-  #                        get_value = function(value1, value2){
-  #                          library(kernlab)
-  #                          library(ROCR)
-  #                          model = ksvm(x_oc, type = 'one-svc',  scaled = F, nu=value1,kpar = list(sigma = value2), prob.model = TRUE)
-  #                          platt_one_svc = function(model){
-  #                            library(caret)
-  #                            res = predict(model, x, type = 'response')
-  #                            res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                            
-  #                            train_control <- trainControl(method = "cv", number = 10)
-  #                            model2 <- train(y ~ res,
-  #                                            data = data.frame(y,res),
-  #                                            trControl = train_control,
-  #                                            method = "glm",
-  #                                            family=binomial())
-  #                            
-  #                            return(predict(model2, res, type = 'prob')[,2])
-  #                          }
-  #                          p1 = platt_one_svc(model)
-  #                          pr = prediction(p1, y)
-  #                          out = performance(pr, 'auc')@y.values[[1]]
-  #                          
-  #                          return(c(value1, value2, out))
-  #                        }
-  #                        
-  #                        get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                      }
-  # 
-  # 
-  # 
-  # result_svm <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                       .options.snow = opts) %dopar% {
-  #                         c_param = 2^seq(-10,10, length.out = 10)
-  #                         gamma_param = 2^seq(-10,0, length.out = 10)
-  #                         param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                         
-  #                         get_value = function(value1, value2){
-  #                           library(kernlab)
-  #                           library(ROCR)
-  #                           model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kpar = list(sigma = value2),  prob.model = TRUE)
-  #                           p1 = predict(model, x, type = 'probabilities')[,2]
-  #                           pr = prediction(p1, y)
-  #                           prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                           out = performance(pr, 'auc')@y.values[[1]]
-  #                           return(c(value1, value2, out))
-  #                         }
-  #                         
-  #                         get_value(param_grid[i,1],param_grid[i,2])
-  #                       }
-  # 
-  # 
-  # result_oc_ps <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                         .options.snow = opts) %dopar% {
-  #                           nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                           gamma_param = 2^seq(-10,0, length.out = 10)
-  #                           param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                           
-  #                           get_value = function(value1, value2){
-  #                             library(WeightSVM)
-  #                             library(ROCR)
-  #                             obj = wsvm(x = x_oc, weight = ps_oc, type = 'one-classification', nu = value1, gamma = value2, scale = FALSE)
-  #                             platt_one_svc = function(model){
-  #                               res = predict(model, x, type = 'response')
-  #                               res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                               m1 = glm(y~res, family = binomial(link = 'logit'))
-  #                               return(m1$fitted.values)
-  #                             }
-  #                             p1 = platt_one_svc(obj)
-  #                             pr = prediction(p1, y)
-  #                             out = performance(pr, 'auc')@y.values[[1]]
-  #                             return(c(value1, value2, out))
-  #                           }
-  #                           
-  #                           get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                         }
-  # 
-  # result_svm_ps <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                          .options.snow = opts) %dopar% {
-  #                            c_param = 2^seq(-10,10, length.out = 10)
-  #                            gamma_param = 2^seq(-10,0, length.out = 10)
-  #                            param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                            
-  #                            get_value = function(value1, value2){
-  #                              library(WeightSVM)
-  #                              library(caret)
-  #                              obj = wsvm(x = x, y = y, weight = ps, type = 'C-classification', cost = value1, gamma = value2, scale = FALSE, probability = TRUE)
-  #                              p1 = predict(obj, x, probability = TRUE)
-  #                              p1 = as.data.frame(attr(p1,"probabilities"))[,2]
-  #                              pr = prediction(p1, y)
-  #                              prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                              out = performance(pr, 'auc')@y.values[[1]]
-  #                              return(c(value1, value2, out))
-  #                            }
-  #                            
-  #                            get_value(param_grid[i,1],param_grid[i,2])
-  #                          }
-  # 
-  # 
-  # close(pb)
-  # stopCluster(myCluster)
-  # 
-  # results_ = list()
-  # results_[[1]] = result_oc[order(result_oc[,3], decreasing = T),]
-  # results_[[2]] = result_svm[order(result_svm[,3], decreasing = T),]
-  # 
-  # results_[[3]] = result_oc_ps[order(result_oc_ps[,3], decreasing = T),]
-  # results_[[4]] = result_svm_ps[order(result_svm_ps[,3], decreasing = T),]
-  # 
-  # results_rbf = results_
-  
+ 
   numCores <- parallel::detectCores() - 2
   myCluster <- makeCluster(numCores)
   registerDoSNOW(myCluster)
@@ -992,7 +861,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                             library(kernlab)
                             library(ROCR)
                             model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kernel = 'vanilladot',  prob.model = TRUE)
-                            p1 = predict(model, x, type = 'probabilities')[,"1"]
+                            pr_obj = predict(model, x, type = 'probabilities')
+                            if( dim(pr_obj)[2] != 2){
+                              p1 = rep(1,length(y))
+                            } else {
+                              p1 = pr_obj[,"1"]
+                            }
+                            
                             pr = prediction(p1, y)
                             prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
                             out = performance(pr, 'auc')@y.values[[1]]
@@ -1023,8 +898,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                                 trControl = train_control,
                                                 method = "glm",
                                                 family=binomial())
-                                
-                                return(predict(model2, res, type = 'prob')[,"1"])
+                                pr_obj = predict(model2, res, type = 'prob')
+                                if( dim(pr_obj)[2] != 2){
+                                  p1 = rep(1,length(y))
+                                } else {
+                                  p1 = pr_obj[,"1"]
+                                }
+                                return(p1)
                               }
                               p1 = platt_one_svc(obj)
                               pr = prediction(p1, y)
@@ -1095,143 +975,6 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   ps_oc = ps[result[[y_value]] ==0]
   x_oc = result_oc$drug_sum
   
-  # pb = txtProgressBar(max = 100, style = 3)
-  # progress = function(n) setTxtProgressBar(pb, n)
-  # opts <- list(progress = progress)
-  # 
-  # nu_param = seq(0.0001, 0.9999, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  # 
-  # c_param = 2^seq(-10,10, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  # 
-  # 
-  # 
-  # result_oc <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                      .options.snow = opts) %dopar% {
-  #                        
-  #                        nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                        gamma_param = 2^seq(-10,0, length.out = 10)
-  #                        param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                        
-  #                        get_value = function(value1, value2){
-  #                          library(kernlab)
-  #                          library(ROCR)
-  #                          model = ksvm(x_oc, type = 'one-svc',  scaled = F, nu=value1,kpar = list(sigma = value2), prob.model = TRUE)
-  #                          platt_one_svc = function(model){
-  #                            library(caret)
-  #                            res = predict(model, x, type = 'response')
-  #                            res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                            
-  #                            train_control <- trainControl(method = "cv", number = 10)
-  #                            model2 <- train(y ~ res,
-  #                                            data = data.frame(y,res),
-  #                                            trControl = train_control,
-  #                                            method = "glm",
-  #                                            family=binomial())
-  #                            
-  #                            return(predict(model2, res, type = 'prob')[,2])
-  #                          }
-  #                          p1 = platt_one_svc(model)
-  #                          pr = prediction(p1, y)
-  #                          out = performance(pr, 'auc')@y.values[[1]]
-  #                          return(c(value1, value2, out))
-  #                        }
-  #                        
-  #                        get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                      }
-  # 
-  # 
-  # 
-  # result_svm <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                       .options.snow = opts) %dopar% {
-  #                         c_param = 2^seq(-10,10, length.out = 10)
-  #                         gamma_param = 2^seq(-10,0, length.out = 10)
-  #                         param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                         
-  #                         get_value = function(value1, value2){
-  #                           library(kernlab)
-  #                           library(ROCR)
-  #                           model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kpar = list(sigma = value2),  prob.model = TRUE)
-  #                           p1 = predict(model, x, type = 'probabilities')[,2]
-  #                           pr = prediction(p1, y)
-  #                           prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                           out = performance(pr, 'auc')@y.values[[1]]
-  #                           return(c(value1, value2, out))
-  #                         }
-  #                         
-  #                         get_value(param_grid[i,1],param_grid[i,2])
-  #                       }
-  # 
-  # 
-  # result_oc_ps <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                         .options.snow = opts) %dopar% {
-  #                           nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                           gamma_param = 2^seq(-10,0, length.out = 10)
-  #                           param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                           
-  #                           get_value = function(value1, value2){
-  #                             library(WeightSVM)
-  #                             library(ROCR)
-  #                             obj = wsvm(x = x_oc, weight = ps_oc, type = 'one-classification', nu = value1, gamma = value2, scale = FALSE)
-  #                             platt_one_svc = function(model){
-  #                               library(caret)
-  #                               res = predict(model, x, type = 'response')
-  #                               res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                               
-  #                               train_control <- trainControl(method = "cv", number = 10)
-  #                               model2 <- train(y ~ res,
-  #                                               data = data.frame(y,res),
-  #                                               trControl = train_control,
-  #                                               method = "glm",
-  #                                               family=binomial())
-  #                               
-  #                               return(predict(model2, res, type = 'prob')[,2])
-  #                             }
-  #                             p1 = platt_one_svc(obj)
-  #                             pr = prediction(p1, y)
-  #                             out = performance(pr, 'auc')@y.values[[1]]
-  #                             return(c(value1, value2, out))
-  #                           }
-  #                           
-  #                           get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                         }
-  # 
-  # result_svm_ps <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                          .options.snow = opts) %dopar% {
-  #                            c_param = 2^seq(-10,10, length.out = 10)
-  #                            gamma_param = 2^seq(-10,0, length.out = 10)
-  #                            param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                            
-  #                            get_value = function(value1, value2){
-  #                              library(WeightSVM)
-  #                              library(caret)
-  #                              obj = wsvm(x = x, y = y, weight = ps, type = 'C-classification', cost = value1, gamma = value2, scale = FALSE, probability = TRUE)
-  #                              p1 = predict(obj, x, probability = TRUE)
-  #                              p1 = as.data.frame(attr(p1,"probabilities"))[,2]
-  #                              pr = prediction(p1, y)
-  #                              prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                              out = performance(pr, 'auc')@y.values[[1]]
-  #                              return(c(value1, value2, out))
-  #                            }
-  #                            
-  #                            get_value(param_grid[i,1],param_grid[i,2])
-  #                          }
-  # 
-  # 
-  # close(pb)
-  # stopCluster(myCluster)
-  # 
-  # results_ = list()
-  # results_[[1]] = result_oc[order(result_oc[,3], decreasing = T),]
-  # results_[[2]] = result_svm[order(result_svm[,3], decreasing = T),]
-  # 
-  # results_[[3]] = result_oc_ps[order(result_oc_ps[,3], decreasing = T),]
-  # results_[[4]] = result_svm_ps[order(result_svm_ps[,3], decreasing = T),]
-  # 
-  # results_rbf = results_
   
   numCores <- parallel::detectCores() - 2
   myCluster <- makeCluster(numCores)
@@ -1267,8 +1010,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                              trControl = train_control,
                                              method = "glm",
                                              family=binomial())
-                             
-                             return(predict(model2, res, type = 'prob')[,"1"])
+                             pr_obj = predict(model2, res, type = 'prob')
+                             if( dim(pr_obj)[2] != 2){
+                               p1 = rep(1,length(y))
+                             } else {
+                               p1 = pr_obj[,"1"]
+                             }
+                             return(p1)
                            }
                            p1 = platt_one_svc(model)
                            pr = prediction(p1, y)
@@ -1290,7 +1038,12 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                             library(kernlab)
                             library(ROCR)
                             model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kernel = 'vanilladot',  prob.model = TRUE)
-                            p1 = predict(model, x, type = 'probabilities')[,"1"]
+                            pr_obj = predict(model, x, type = 'probabilities')
+                            if( dim(pr_obj)[2] != 2){
+                              p1 = rep(1,length(y))
+                            } else {
+                              p1 = pr_obj[,"1"]
+                            }
                             pr = prediction(p1, y)
                             prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
                             out = performance(pr, 'auc')@y.values[[1]]
@@ -1321,8 +1074,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                                 trControl = train_control,
                                                 method = "glm",
                                                 family=binomial())
-                                
-                                return(predict(model2, res, type = 'prob')[,"1"])
+                                pr_obj = predict(model2, res, type = 'prob')
+                                if( dim(pr_obj)[2] != 2){
+                                  p1 = rep(1,length(y))
+                                } else {
+                                  p1 = pr_obj[,"1"]
+                                }
+                                return(p1)
                               }
                               p1 = platt_one_svc(obj)
                               pr = prediction(p1, y)
@@ -1377,7 +1135,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   y_value = 'osteonecrosis'
   
   
-  # numCores <- parallel::detectCores() - 4
+  # numCores <- parallel::detectCores() - 2
   # myCluster <- makeCluster(numCores)
   # registerDoSNOW(myCluster)
   
@@ -1387,144 +1145,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   result_oc = result[result[[y_value]] ==0,]
   ps_oc = ps[result[[y_value]] ==0]
   x_oc = result_oc$drug_sum
-  # 
-  # pb = txtProgressBar(max = 100, style = 3)
-  # progress = function(n) setTxtProgressBar(pb, n)
-  # opts <- list(progress = progress)
-  # 
-  # nu_param = seq(0.0001, 0.9999, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  # 
-  # c_param = 2^seq(-10,10, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  # 
-  # 
-  # 
-  # result_oc <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                      .options.snow = opts) %dopar% {
-  #                        
-  #                        nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                        gamma_param = 2^seq(-10,0, length.out = 10)
-  #                        param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                        
-  #                        get_value = function(value1, value2){
-  #                          library(kernlab)
-  #                          library(ROCR)
-  #                          model = ksvm(x_oc, type = 'one-svc',  scaled = F, nu=value1,kpar = list(sigma = value2), prob.model = TRUE)
-  #                          platt_one_svc = function(model){
-  #                            library(caret)
-  #                            res = predict(model, x, type = 'response')
-  #                            res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                            
-  #                            train_control <- trainControl(method = "cv", number = 10)
-  #                            model2 <- train(y ~ res,
-  #                                            data = data.frame(y,res),
-  #                                            trControl = train_control,
-  #                                            method = "glm",
-  #                                            family=binomial())
-  #                            
-  #                            return(predict(model2, res, type = 'prob')[,2])
-  #                          }
-  #                          p1 = platt_one_svc(model)
-  #                          pr = prediction(p1, y)
-  #                          out = performance(pr, 'auc')@y.values[[1]]
-  #                          return(c(value1, value2, out))
-  #                        }
-  #                        
-  #                        get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                      }
-  # 
-  # 
-  # 
-  # result_svm <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                       .options.snow = opts) %dopar% {
-  #                         c_param = 2^seq(-10,10, length.out = 10)
-  #                         gamma_param = 2^seq(-10,0, length.out = 10)
-  #                         param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                         
-  #                         get_value = function(value1, value2){
-  #                           library(kernlab)
-  #                           library(ROCR)
-  #                           model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kpar = list(sigma = value2),  prob.model = TRUE)
-  #                           p1 = predict(model, x, type = 'probabilities')[,2]
-  #                           pr = prediction(p1, y)
-  #                           prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                           out = performance(pr, 'auc')@y.values[[1]]
-  #                           return(c(value1, value2, out))
-  #                         }
-  #                         
-  #                         get_value(param_grid[i,1],param_grid[i,2])
-  #                       }
-  # 
-  # 
-  # result_oc_ps <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                         .options.snow = opts) %dopar% {
-  #                           nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                           gamma_param = 2^seq(-10,0, length.out = 10)
-  #                           param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                           
-  #                           get_value = function(value1, value2){
-  #                             library(WeightSVM)
-  #                             library(ROCR)
-  #                             obj = wsvm(x = x_oc, weight = ps_oc, type = 'one-classification', nu = value1, gamma = value2, scale = FALSE)
-  #                             platt_one_svc = function(model){
-  #                               library(caret)
-  #                               res = predict(model, x, type = 'response')
-  #                               res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                               
-  #                               train_control <- trainControl(method = "cv", number = 10)
-  #                               model2 <- train(y ~ res,
-  #                                               data = data.frame(y,res),
-  #                                               trControl = train_control,
-  #                                               method = "glm",
-  #                                               family=binomial())
-  #                               
-  #                               return(predict(model2, res, type = 'prob')[,2])
-  #                             }
-  #                             p1 = platt_one_svc(obj)
-  #                             pr = prediction(p1, y)
-  #                             out = performance(pr, 'auc')@y.values[[1]]
-  #                             return(c(value1, value2, out))
-  #                           }
-  #                           
-  #                           get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                         }
-  # 
-  # result_svm_ps <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                          .options.snow = opts) %dopar% {
-  #                            c_param = 2^seq(-10,10, length.out = 10)
-  #                            gamma_param = 2^seq(-10,0, length.out = 10)
-  #                            param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                            
-  #                            get_value = function(value1, value2){
-  #                              library(WeightSVM)
-  #                              library(caret)
-  #                              obj = wsvm(x = x, y = y, weight = ps, type = 'C-classification', cost = value1, gamma = value2, scale = FALSE, probability = TRUE)
-  #                              p1 = predict(obj, x, probability = TRUE)
-  #                              p1 = as.data.frame(attr(p1,"probabilities"))[,2]
-  #                              pr = prediction(p1, y)
-  #                              prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                              out = performance(pr, 'auc')@y.values[[1]]
-  #                              return(c(value1, value2, out))
-  #                            }
-  #                            
-  #                            get_value(param_grid[i,1],param_grid[i,2])
-  #                          }
-  # 
-  # 
-  # close(pb)
-  # stopCluster(myCluster)
-  # 
-  # results_ = list()
-  # results_[[1]] = result_oc[order(result_oc[,3], decreasing = T),]
-  # results_[[2]] = result_svm[order(result_svm[,3], decreasing = T),]
-  # 
-  # results_[[3]] = result_oc_ps[order(result_oc_ps[,3], decreasing = T),]
-  # results_[[4]] = result_svm_ps[order(result_svm_ps[,3], decreasing = T),]
-  # 
-  # results_rbf = results_
+  
   
   numCores <- parallel::detectCores() - 2
   myCluster <- makeCluster(numCores)
@@ -1560,8 +1181,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                              trControl = train_control,
                                              method = "glm",
                                              family=binomial())
-                             
-                             return(predict(model2, res, type = 'prob')[,"1"])
+                             pr_obj = predict(model2, res, type = 'prob')
+                             if( dim(pr_obj)[2] != 2){
+                               p1 = rep(1,length(y))
+                             } else {
+                               p1 = pr_obj[,"1"]
+                             }
+                             return(p1)
                            }
                            p1 = platt_one_svc(model)
                            pr = prediction(p1, y)
@@ -1583,7 +1209,12 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                             library(kernlab)
                             library(ROCR)
                             model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kernel = 'vanilladot',  prob.model = TRUE)
-                            p1 = predict(model, x, type = 'probabilities')[,"1"]
+                            pr_obj = predict(model, x, type = 'probabilities')
+                            if( dim(pr_obj)[2] != 2){
+                              p1 = rep(1,length(y))
+                            } else {
+                              p1 = pr_obj[,"1"]
+                            }
                             pr = prediction(p1, y)
                             prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
                             out = performance(pr, 'auc')@y.values[[1]]
@@ -1614,8 +1245,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                                 trControl = train_control,
                                                 method = "glm",
                                                 family=binomial())
-                                
-                                return(predict(model2, res, type = 'prob')[,"1"])
+                                pr_obj = predict(model2, res, type = 'prob')
+                                if( dim(pr_obj)[2] != 2){
+                                  p1 = rep(1,length(y))
+                                } else {
+                                  p1 = pr_obj[,"1"]
+                                }
+                                return(p1)
                               }
                               p1 = platt_one_svc(obj)
                               pr = prediction(p1, y)
@@ -1666,7 +1302,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   y_value = 'pathologicfrac'
   
   # 
-  # numCores <- parallel::detectCores() - 4
+  # numCores <- parallel::detectCores() - 2
   # myCluster <- makeCluster(numCores)
   # registerDoSNOW(myCluster)
   
@@ -1676,144 +1312,7 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   result_oc = result[result[[y_value]] ==0,]
   ps_oc = ps[result[[y_value]] ==0]
   x_oc = result_oc$drug_sum
-  # 
-  # pb = txtProgressBar(max = 100, style = 3)
-  # progress = function(n) setTxtProgressBar(pb, n)
-  # opts <- list(progress = progress)
-  # 
-  # nu_param = seq(0.0001, 0.9999, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  # 
-  # c_param = 2^seq(-10,10, length.out = 10)
-  # gamma_param = 2^seq(-10,0, length.out = 10)
-  # param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  # 
-  # 
-  # 
-  # result_oc <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                      .options.snow = opts) %dopar% {
-  #                        
-  #                        nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                        gamma_param = 2^seq(-10,0, length.out = 10)
-  #                        param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                        
-  #                        get_value = function(value1, value2){
-  #                          library(kernlab)
-  #                          library(ROCR)
-  #                          model = ksvm(x_oc, type = 'one-svc',  scaled = F, nu=value1,kpar = list(sigma = value2), prob.model = TRUE)
-  #                          platt_one_svc = function(model){
-  #                            library(caret)
-  #                            res = predict(model, x, type = 'response')
-  #                            res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                            
-  #                            train_control <- trainControl(method = "cv", number = 10)
-  #                            model2 <- train(y ~ res,
-  #                                            data = data.frame(y,res),
-  #                                            trControl = train_control,
-  #                                            method = "glm",
-  #                                            family=binomial())
-  #                            
-  #                            return(predict(model2, res, type = 'prob')[,2])
-  #                          }
-  #                          p1 = platt_one_svc(model)
-  #                          pr = prediction(p1, y)
-  #                          out = performance(pr, 'auc')@y.values[[1]]
-  #                          return(c(value1, value2, out))
-  #                        }
-  #                        
-  #                        get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                      }
-  # 
-  # 
-  # 
-  # result_svm <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                       .options.snow = opts) %dopar% {
-  #                         c_param = 2^seq(-10,10, length.out = 10)
-  #                         gamma_param = 2^seq(-10,0, length.out = 10)
-  #                         param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                         
-  #                         get_value = function(value1, value2){
-  #                           library(kernlab)
-  #                           library(ROCR)
-  #                           model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kpar = list(sigma = value2),  prob.model = TRUE)
-  #                           p1 = predict(model, x, type = 'probabilities')[,2]
-  #                           pr = prediction(p1, y)
-  #                           prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                           out = performance(pr, 'auc')@y.values[[1]]
-  #                           return(c(value1, value2, out))
-  #                         }
-  #                         
-  #                         get_value(param_grid[i,1],param_grid[i,2])
-  #                       }
-  # 
-  # 
-  # result_oc_ps <- foreach(i = 1:nrow(param_grid_oc), .combine = rbind,
-  #                         .options.snow = opts) %dopar% {
-  #                           nu_param = seq(0.0001, 0.9999, length.out = 10)
-  #                           gamma_param = 2^seq(-10,0, length.out = 10)
-  #                           param_grid_oc = as.data.frame(expand.grid(nu_param, gamma_param))
-  #                           
-  #                           get_value = function(value1, value2){
-  #                             library(WeightSVM)
-  #                             library(ROCR)
-  #                             obj = wsvm(x = x_oc, weight = ps_oc, type = 'one-classification', nu = value1, gamma = value2, scale = FALSE)
-  #                             platt_one_svc = function(model){
-  #                               library(caret)
-  #                               res = predict(model, x, type = 'response')
-  #                               res = ifelse(as.numeric(res) == 1, 0, 1)
-  #                               
-  #                               train_control <- trainControl(method = "cv", number = 10)
-  #                               model2 <- train(y ~ res,
-  #                                               data = data.frame(y,res),
-  #                                               trControl = train_control,
-  #                                               method = "glm",
-  #                                               family=binomial())
-  #                               
-  #                               return(predict(model2, res, type = 'prob')[,2])
-  #                             }
-  #                             p1 = platt_one_svc(obj)
-  #                             pr = prediction(p1, y)
-  #                             out = performance(pr, 'auc')@y.values[[1]]
-  #                             return(c(value1, value2, out))
-  #                           }
-  #                           
-  #                           get_value(param_grid_oc[i,1],param_grid_oc[i,2])
-  #                         }
-  # 
-  # result_svm_ps <- foreach(i = 1:nrow(param_grid), .combine = rbind,
-  #                          .options.snow = opts) %dopar% {
-  #                            c_param = 2^seq(-10,10, length.out = 10)
-  #                            gamma_param = 2^seq(-10,0, length.out = 10)
-  #                            param_grid = as.data.frame(expand.grid(c_param, gamma_param))
-  #                            
-  #                            get_value = function(value1, value2){
-  #                              library(WeightSVM)
-  #                              library(caret)
-  #                              obj = wsvm(x = x, y = y, weight = ps, type = 'C-classification', cost = value1, gamma = value2, scale = FALSE, probability = TRUE)
-  #                              p1 = predict(obj, x, probability = TRUE)
-  #                              p1 = as.data.frame(attr(p1,"probabilities"))[,2]
-  #                              pr = prediction(p1, y)
-  #                              prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
-  #                              out = performance(pr, 'auc')@y.values[[1]]
-  #                              return(c(value1, value2, out))
-  #                            }
-  #                            
-  #                            get_value(param_grid[i,1],param_grid[i,2])
-  #                          }
-  # 
-  # 
-  # close(pb)
-  # stopCluster(myCluster)
-  # 
-  # results_ = list()
-  # results_[[1]] = result_oc[order(result_oc[,3], decreasing = T),]
-  # results_[[2]] = result_svm[order(result_svm[,3], decreasing = T),]
-  # 
-  # results_[[3]] = result_oc_ps[order(result_oc_ps[,3], decreasing = T),]
-  # results_[[4]] = result_svm_ps[order(result_svm_ps[,3], decreasing = T),]
-  # 
-  # results_rbf = results_
+  
   
   numCores <- parallel::detectCores() - 2
   myCluster <- makeCluster(numCores)
@@ -1849,8 +1348,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                              trControl = train_control,
                                              method = "glm",
                                              family=binomial())
-                             
-                             return(predict(model2, res, type = 'prob')[,"1"])
+                             pr_obj = predict(model2, res, type = 'prob')
+                             if( dim(pr_obj)[2] != 2){
+                               p1 = rep(1,length(y))
+                             } else {
+                               p1 = pr_obj[,"1"]
+                             }
+                             return(p1)
                            }
                            p1 = platt_one_svc(model)
                            pr = prediction(p1, y)
@@ -1872,7 +1376,12 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                             library(kernlab)
                             library(ROCR)
                             model = ksvm(x,y, type = 'C-svc', scaled = F, C=value1,kernel = 'vanilladot',  prob.model = TRUE)
-                            p1 = predict(model, x, type = 'probabilities')[,"1"]
+                            pr_obj = predict(model, x, type = 'probabilities')
+                            if( dim(pr_obj)[2] != 2){
+                              p1 = rep(1,length(y))
+                            } else {
+                              p1 = pr_obj[,"1"]
+                            }
                             pr = prediction(p1, y)
                             prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
                             out = performance(pr, 'auc')@y.values[[1]]
@@ -1903,8 +1412,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                                                 trControl = train_control,
                                                 method = "glm",
                                                 family=binomial())
-                                
-                                return(predict(model2, res, type = 'prob')[,"1"])
+                                pr_obj = predict(model2, res, type = 'prob')
+                                if( dim(pr_obj)[2] != 2){
+                                  p1 = rep(1,length(y))
+                                } else {
+                                  p1 = pr_obj[,"1"]
+                                }
+                                return(p1)
                               }
                               p1 = platt_one_svc(obj)
                               pr = prediction(p1, y)
@@ -1971,7 +1485,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
     y = as.factor(result[[y_output]])
     auc1 = result_svm[[1]][1,2]
     model = ksvm(x,y, type = 'C-svc', scaled = F, C=optimal, kernel = 'vanilladot',  prob.model = TRUE)
-    p1 = predict(model, x, type = 'probabilities')[,"1"]
+    pr_obj = predict(model, x, type = 'probabilities')
+    if( dim(pr_obj)[2] != 2){
+      p1 = rep(1,length(y))
+    } else {
+      p1 = pr_obj[,"1"]
+    }
+    
     pr = prediction(p1, y)
     prf = performance(pr, measure = 'tpr', x.measure = 'fpr')
     
@@ -2056,8 +1576,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                       trControl = train_control,
                       method = "glm",
                       family=binomial())
-      
-      return(predict(model2, res, type = 'prob')[,"1"])
+      pr_obj = predict(model2, res, type = 'prob')
+      if( dim(pr_obj)[2] != 2){
+        p1 = rep(1,length(y))
+      } else {
+        p1 = pr_obj[,"1"]
+      }
+      return(p1)
     }
     p1 = platt_one_svc(model)
     pr = prediction(p1, y)
@@ -2102,8 +1627,13 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
                       trControl = train_control,
                       method = "glm",
                       family=binomial())
-      
-      return(predict(model2, res, type = 'prob')[,"1"])
+      pr_obj = predict(model2, res, type = 'prob')
+      if( dim(pr_obj)[2] != 2){
+        p1 = rep(1,length(y))
+      } else {
+        p1 = pr_obj[,"1"]
+      }
+      return(p1)
     }
     p1 = platt_one_svc(obj)
     pr = prediction(p1, y)
@@ -2414,11 +1944,11 @@ WHERE drug_concept_id IN (SELECT steroid_concept_id FROM #@drug_table)
   
   
   steroid_analysis_weight(result, ps, output_name = 'output_all_weight')
-  # steroid_analysis_weight(result, ps, min_dose = 0, end_dose = 7.5, output_name = 'output_low_dose')
-  # steroid_analysis_weight(result, ps, min_dose = 7.5, end_dose = 30, output_name = 'output_medium_dose')
-  # steroid_analysis_weight(result, ps, min_dose = 30, end_dose = 100, output_name = 'output_high_dose')
-  # steroid_analysis_weight(result, ps, min_dose = 100, end_dose = Inf, output_name = 'output_very_high_dose')
-  # steroid_analysis_weight(result, ps, pulse = T, output_name = 'output_pulse')
+  steroid_analysis_weight(result, ps, min_dose = 0, end_dose = 7.5, output_name = 'output_low_dose_weight')
+  steroid_analysis_weight(result, ps, min_dose = 7.5, end_dose = 30, output_name = 'output_medium_dose_weight')
+  steroid_analysis_weight(result, ps, min_dose = 30, end_dose = 100, output_name = 'output_high_dose_weight')
+  steroid_analysis_weight(result, ps, min_dose = 100, end_dose = Inf, output_name = 'output_very_high_dose_weight')
+  steroid_analysis_weight(result, ps, pulse = T, output_name = 'output_pulse_weight')
   
   print('Analysis completed')
 }
